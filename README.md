@@ -160,20 +160,23 @@ If you are still waiting on Gemini access, keep the same deployment path and use
 
 1. Create a new Pages project from this repository.
 2. Set the root directory to `frontend`.
-3. Use:
+3. The frontend is pinned to Vite 6 so it stays compatible with Cloudflare's current Vite integration.
+4. Use:
 
 ```bash
 Build command: npm run build
 Build output directory: dist
 ```
 
-4. Add the frontend environment variable:
+5. Add the frontend environment variable:
 
 ```env
 VITE_API_BASE_URL=https://your-render-service.onrender.com
 ```
 
 This tells the frontend to call the Render backend directly in production, while local development continues to use the Vite proxy.
+
+If you accidentally created a Worker-style deployment that asks for a manual deploy command, recreate it as a Cloudflare Pages project instead of using `wrangler deploy`.
 
 ### Recommended public demo path
 
