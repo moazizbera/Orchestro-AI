@@ -1,0 +1,14 @@
+{
+  "$schema": "../node_modules/wrangler/config-schema.json",
+  "name": "orchestro-ai",
+  "compatibility_date": "2026-05-28",
+  "build": {
+    "command": "npm install --no-fund --no-audit && npm run build"
+  },
+  "observability": {
+    "enabled": true
+  },
+  "assets": {
+    "directory": "dist"
+  }
+}
