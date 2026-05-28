@@ -126,7 +126,7 @@ Dashboard: http://localhost:5173
 
 If you want a public demo before Google Cloud credits arrive, the simplest production path for this repo is:
 
-- **Frontend:** Cloudflare Pages
+- **Frontend:** Cloudflare Worker static assets via Wrangler
 - **Backend:** Render Web Service
 - **Database:** MongoDB Atlas
 
@@ -156,27 +156,28 @@ CORS_ORIGINS=https://your-cloudflare-pages-domain.pages.dev
 
 If you are still waiting on Gemini access, keep the same deployment path and use the local or fallback provider configuration instead of claiming live Gemini.
 
-### Cloudflare Pages frontend
+### Cloudflare frontend
 
-1. Create a new Pages project from this repository.
-2. Set the root directory to `frontend`.
-3. The frontend is pinned to Vite 6 so it stays compatible with Cloudflare's current Vite integration.
-4. Use:
+This repo now supports the same Cloudflare deployment shape as a Wrangler-managed Worker/assets project.
+
+Use these Cloudflare settings from the repository root:
 
 ```bash
-Build command: npm run build
-Build output directory: dist
+Build command: None
+Deploy command: npx wrangler deploy
+Version command: npx wrangler versions upload
+Root directory: /
 ```
 
-5. Add the frontend environment variable:
+The root [wrangler.jsonc](f:/Projects/Hackathons/Orchestro-AI/wrangler.jsonc) file runs the frontend build and uploads `frontend/dist` as static assets.
+
+Add the frontend environment variable:
 
 ```env
 VITE_API_BASE_URL=https://your-render-service.onrender.com
 ```
 
 This tells the frontend to call the Render backend directly in production, while local development continues to use the Vite proxy.
-
-If you accidentally created a Worker-style deployment that asks for a manual deploy command, recreate it as a Cloudflare Pages project instead of using `wrangler deploy`.
 
 ### Recommended public demo path
 
