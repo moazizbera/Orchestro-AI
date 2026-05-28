@@ -1,9 +1,29 @@
 from pathlib import Path
 
 from pydantic import field_validator
-from pydantic_settings import BaseSettings
+from pydantic_settings import (
+    BaseSettings,
+    DotEnvSettingsSource,
+    EnvSettingsSource,
+    PydanticBaseSettingsSource,
+    SettingsConfigDict,
+)
 
 _ENV_FILE = Path(__file__).parent / ".env"
+
+
+class _CorsOriginsEnvSettingsSource(EnvSettingsSource):
+    def prepare_field_value(self, field_name, field, value, value_is_complex):
+        if field_name == "cors_origins" and isinstance(value, str):
+            return value
+        return super().prepare_field_value(field_name, field, value, value_is_complex)
+
+
+class _CorsOriginsDotEnvSettingsSource(DotEnvSettingsSource):
+    def prepare_field_value(self, field_name, field, value, value_is_complex):
+        if field_name == "cors_origins" and isinstance(value, str):
+            return value
+        return super().prepare_field_value(field_name, field, value, value_is_complex)
 
 
 class Settings(BaseSettings):
@@ -62,11 +82,28 @@ class Settings(BaseSettings):
             return [origin.strip() for origin in text.split(",") if origin.strip()]
         return value
 
-    model_config = {
-        "env_file": str(_ENV_FILE),
-        "env_file_encoding": "utf-8",
-        "extra": "ignore",
-    }
+    @classmethod
+    def settings_customise_sources(
+        cls,
+        settings_cls,
+        init_settings: PydanticBaseSettingsSource,
+        env_settings: PydanticBaseSettingsSource,
+        dotenv_settings: PydanticBaseSettingsSource,
+        file_secret_settings: PydanticBaseSettingsSource,
+    ):
+        return (
+            init_settings,
+            _CorsOriginsEnvSettingsSource(settings_cls),
+            _CorsOriginsDotEnvSettingsSource(settings_cls),
+            file_secret_settings,
+        )
+
+    model_config = SettingsConfigDict(
+        env_file=str(_ENV_FILE),
+        env_file_encoding="utf-8",
+        extra="ignore",
+        enable_decoding=False,
+    )
 
 
 settings = Settings()
