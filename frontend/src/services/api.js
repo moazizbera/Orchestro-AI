@@ -1,7 +1,12 @@
 import axios from 'axios'
 
+const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/+$/, '')
+const appBaseUrl = apiBaseUrl || ''
+const apiRoot = apiBaseUrl ? `${apiBaseUrl}/api` : '/api'
+const healthUrl = apiBaseUrl ? `${apiBaseUrl}/health` : '/health'
+
 const api = axios.create({
-  baseURL: '/api',
+  baseURL: apiRoot,
   timeout: 240_000,
   headers: { 'Content-Type': 'application/json' },
 })
@@ -40,7 +45,7 @@ export const getExecutionHistory = async (limit = 5, userId = null) => {
 }
 
 export const getHealth = async () => {
-  const { data } = await axios.get('/health', { timeout: 5000 })
+  const { data } = await axios.get(healthUrl, { timeout: 5000 })
   return data
 }
 

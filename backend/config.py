@@ -1,5 +1,6 @@
 from pathlib import Path
 
+from pydantic import field_validator
 from pydantic_settings import BaseSettings
 
 _ENV_FILE = Path(__file__).parent / ".env"
@@ -48,6 +49,19 @@ class Settings(BaseSettings):
     # ── Email (Resend) ────────────────────────────────────────────
     resend_api_key:    str = ""  # https://resend.com/api-keys
     resend_test_email: str = ""  # recipient for test sends
+
+    @field_validator("cors_origins", mode="before")
+    @classmethod
+    def _parse_cors_origins(cls, value):
+        if isinstance(value, str):
+            text = value.strip()
+            if not text:
+                return []
+            if text.startswith("["):
+                return value
+            return [origin.strip() for origin in text.split(",") if origin.strip()]
+        return value
+
     model_config = {
         "env_file": str(_ENV_FILE),
         "env_file_encoding": "utf-8",

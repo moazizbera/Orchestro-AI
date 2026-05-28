@@ -122,6 +122,68 @@ Dashboard: http://localhost:5173
 
 ---
 
+## Deploying Publicly
+
+If you want a public demo before Google Cloud credits arrive, the simplest production path for this repo is:
+
+- **Frontend:** Cloudflare Pages
+- **Backend:** Render Web Service
+- **Database:** MongoDB Atlas
+
+### Render backend
+
+1. Create a new Web Service in Render from this repository.
+2. Set the service root directory to `backend`.
+3. Use a start command such as:
+
+```bash
+uvicorn main:app --host 0.0.0.0 --port $PORT
+```
+
+4. Configure backend environment variables:
+
+```env
+GEMINI_API_KEY=your_key_here
+GEMINI_BACKEND=developer
+GEMINI_MODEL=gemini-2.0-flash
+PREFERRED_PROVIDER=gemini
+AI_MODE=auto
+MONGODB_URI=your_mongodb_atlas_uri
+DATABASE_NAME=orchestro_ai
+MONGODB_MCP_ENABLED=true
+CORS_ORIGINS=https://your-cloudflare-pages-domain.pages.dev
+```
+
+If you are still waiting on Gemini access, keep the same deployment path and use the local or fallback provider configuration instead of claiming live Gemini.
+
+### Cloudflare Pages frontend
+
+1. Create a new Pages project from this repository.
+2. Set the root directory to `frontend`.
+3. Use:
+
+```bash
+Build command: npm run build
+Build output directory: dist
+```
+
+4. Add the frontend environment variable:
+
+```env
+VITE_API_BASE_URL=https://your-render-service.onrender.com
+```
+
+This tells the frontend to call the Render backend directly in production, while local development continues to use the Vite proxy.
+
+### Recommended public demo path
+
+1. Deploy MongoDB Atlas and confirm the backend `/health` endpoint works on Render.
+2. Deploy the frontend to Cloudflare Pages with `VITE_API_BASE_URL` pointing at Render.
+3. Add the Cloudflare Pages domain to `CORS_ORIGINS` on the backend.
+4. Open Submission Mode in the app and use the built-in judge scenario for the demo.
+
+---
+
 ## Submission Story
 
 This version is intentionally narrowed for the hackathon submission:
@@ -213,6 +275,13 @@ Then authenticate with Application Default Credentials or a service account befo
 | `MONGODB_MCP_COMMAND` | Command used to launch the official MongoDB MCP server | `npx -y mongodb-mcp-server@latest` |
 | `MONGODB_MCP_READ_ONLY` | Run MCP server in read-only mode | `false` |
 | `MONGODB_MCP_DISABLED_TOOLS` | Comma-separated MCP tools to disable | — |
+| `CORS_ORIGINS` | Comma-separated frontend origins allowed to call the backend | local dev origins |
+
+### `frontend/.env`
+
+| Variable | Description | Default |
+|---|---|---|
+| `VITE_API_BASE_URL` | Public backend origin for deployed frontend builds | local relative `/api` and `/health` |
 
 ---
 
