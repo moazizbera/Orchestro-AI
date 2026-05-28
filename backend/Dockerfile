@@ -1,14 +1,14 @@
 # ─── Build stage ────────────────────────────────────────────────────────────
 FROM python:3.12-slim AS builder
 
-FROM node:22-slim AS node
-
 WORKDIR /app
 
 # Install build tools only in the builder layer
 RUN pip install --upgrade pip
 COPY requirements.txt .
 RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
+
+FROM node:22-slim AS node
 
 # ─── Runtime stage ───────────────────────────────────────────────────────────
 FROM python:3.12-slim
