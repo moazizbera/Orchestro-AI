@@ -6,7 +6,7 @@
 
 ## What It Does
 
-Orchestro AI accepts a natural language request, routes it through a **Gemini-preferred orchestrator**, dispatches it to specialized agents, generates real intervention actions, persists everything to MongoDB through the **official MongoDB MCP server**, and displays results in a live React dashboard.
+Orchestro AI accepts a natural language request, routes it through a **Gemini-preferred orchestrator**, dispatches it to specialized agents, generates real intervention actions, persists everything to MongoDB through the **official MongoDB MCP server**, and displays results in a live React dashboard with submission-mode demo tooling.
 
 **Demo scenario:** *"I'm losing money on subscriptions, fix it"*
 
@@ -28,6 +28,11 @@ User Request
      │Agent       │
      └─────┬──────┘
            │
+     ┌─────▼──────┐
+     │Scenario    │  ← strategy layer: conservative / balanced / aggressive savings paths
+     │Agent       │
+     └─────┬──────┘
+            │
     ┌──────▼──────────────┐
     │ MongoDB MCP Server  │  ← partner MCP tools: find / aggregate / insert / update
     └──────┬──────────────┘
@@ -53,6 +58,8 @@ Submission path:
 
 The backend attempts MongoDB operations through the MongoDB MCP server first and falls back to the direct Motor driver only if the MCP server is unavailable. The AI provider path is also explicit: Gemini is the preferred submission runtime, while local Ollama remains a fallback for development when Gemini credentials are not configured.
 
+The frontend also includes a submission-focused demo layer so judges can quickly understand the product: submission mode, a why-this-wins panel, a live demo checklist, a full-screen report viewer, a plain-text judge report export, and a generated presentation script.
+
 ---
 
 ## Stack
@@ -64,6 +71,7 @@ The backend attempts MongoDB operations through the MongoDB MCP server first and
 | Partner   | MongoDB MCP Server (`mongodb-mcp-server`) |
 | Database  | MongoDB 7 / Atlas                       |
 | Frontend  | React 18 · Vite · Tailwind CSS          |
+| Demo UX   | Submission mode · judge report export · demo script generation |
 
 ---
 
@@ -123,6 +131,8 @@ This version is intentionally narrowed for the hackathon submission:
 - MongoDB stores user-linked subscriptions, history, and impact metrics.
 - The workspace is gated behind splash and authentication so sensitive subscription data is added only after sign-in.
 - The UI shows savings opportunities plus ready-to-send cancellation actions in one session.
+- Submission mode focuses the workspace on the judge path with a preloaded scenario, why-this-wins framing, and a live checklist.
+- The full-screen report supports judge report export and generated demo narration.
 
 ### Current runtime behavior
 
@@ -231,7 +241,9 @@ With Gemini configured, `/api/orchestrate` runs on the hackathon submission path
 1. Set `GEMINI_API_KEY` or Vertex credentials in `backend/.env`.
 2. Start MongoDB and the backend, then confirm `/health` shows `provider: gemini`.
 3. Open `http://localhost:5173` and load the built-in judge demo scenario.
-4. Run an audit and show the runtime proof card for MongoDB MCP status plus the multi-agent results.
+4. Turn on Submission Mode in the header.
+5. Run an audit and show the runtime proof card, why-this-wins panel, and multi-agent results.
+6. Open the full report and demonstrate the judge report export plus the generated demo script.
 
 ---
 
@@ -254,6 +266,21 @@ With Gemini configured, `/api/orchestrate` runs on the hackathon submission path
 - Provides negotiation scripts
 - Calculates estimated savings
 
+### Negotiation Agent
+- Builds provider retention and downgrade playbooks
+- Recommends the best channel for provider contact
+- Estimates the savings available through renegotiation
+
+### Calendar Agent
+- Schedules follow-up reminders from the generated action plan
+- Gives the user a concrete timeline for follow-through
+- Keeps the savings process moving after the audit
+
+### Scenario Agent
+- Builds conservative, balanced, and aggressive savings plans
+- Recommends the best scenario based on the current findings
+- Helps users choose between minimal disruption and maximum savings
+
 ### Memory & Data Layer (MongoDB)
 - Uses the official MongoDB MCP server for partner-track reads/writes/aggregations
 - Persists every execution with full agent outputs
@@ -265,13 +292,21 @@ With Gemini configured, `/api/orchestrate` runs on the hackathon submission path
 - Uses MongoDB MCP tools such as `find`, `aggregate`, `insert-many`, and `update-many`
 - Reports MCP status through `/health` with `mongodb_mcp_enabled` and `mongodb_mcp_connected`
 
+### Judge-Facing Demo Layer
+- Submission Mode narrows the UI to the strongest presentation path
+- Why This Wins explains the partner fit and multi-agent value in-product
+- Submission Checklist shows live demo readiness from the current app state
+- Result Viewer exports a plain-text judge report and generates a presenter script
+
 ---
 
 ## Success Criteria ✅
 
 - [x] Multi-step orchestration visible in UI
 - [x] At least 2 agents used per finance request
+- [x] Five-agent workflow available for finance audits
 - [x] Real actions generated (cancellation emails, reminders)
 - [x] All data persisted to MongoDB
 - [x] MongoDB partner integration through the official MCP server
 - [x] Dashboard shows impact metrics
+- [x] Submission-focused demo tooling built into the UI
