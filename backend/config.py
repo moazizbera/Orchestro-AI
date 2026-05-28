@@ -1,29 +1,8 @@
 from pathlib import Path
 
-from pydantic import field_validator
-from pydantic_settings import (
-    BaseSettings,
-    DotEnvSettingsSource,
-    EnvSettingsSource,
-    PydanticBaseSettingsSource,
-    SettingsConfigDict,
-)
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 _ENV_FILE = Path(__file__).parent / ".env"
-
-
-class _CorsOriginsEnvSettingsSource(EnvSettingsSource):
-    def prepare_field_value(self, field_name, field, value, value_is_complex):
-        if field_name == "cors_origins" and isinstance(value, str):
-            return value
-        return super().prepare_field_value(field_name, field, value, value_is_complex)
-
-
-class _CorsOriginsDotEnvSettingsSource(DotEnvSettingsSource):
-    def prepare_field_value(self, field_name, field, value, value_is_complex):
-        if field_name == "cors_origins" and isinstance(value, str):
-            return value
-        return super().prepare_field_value(field_name, field, value, value_is_complex)
 
 
 class Settings(BaseSettings):
@@ -57,52 +36,37 @@ class Settings(BaseSettings):
 
     # ── Misc ─────────────────────────────────────────────────────────────────
     gemini_model: str = "gemini-2.0-flash"
-    cors_origins: list[str] = [
-        "http://localhost:5173",
-        "http://localhost:5174",
-        "http://localhost:5175",
-        "http://localhost:3000",
-        "http://127.0.0.1:5173",
-        "http://127.0.0.1:5174",
-        "http://127.0.0.1:5175",
-    ]
+    cors_origins: str = ",".join(
+        [
+            "http://localhost:5173",
+            "http://localhost:5174",
+            "http://localhost:5175",
+            "http://localhost:3000",
+            "http://127.0.0.1:5173",
+            "http://127.0.0.1:5174",
+            "http://127.0.0.1:5175",
+        ]
+    )
     # ── Email (Resend) ────────────────────────────────────────────
     resend_api_key:    str = ""  # https://resend.com/api-keys
     resend_test_email: str = ""  # recipient for test sends
 
-    @field_validator("cors_origins", mode="before")
-    @classmethod
-    def _parse_cors_origins(cls, value):
-        if isinstance(value, str):
-            text = value.strip()
-            if not text:
-                return []
-            if text.startswith("["):
-                return value
-            return [origin.strip() for origin in text.split(",") if origin.strip()]
-        return value
+    @property
+    def cors_origins_list(self) -> list[str]:
+        text = self.cors_origins.strip()
+        if not text:
+            return []
+        if text.startswith("["):
+            import json
 
-    @classmethod
-    def settings_customise_sources(
-        cls,
-        settings_cls,
-        init_settings: PydanticBaseSettingsSource,
-        env_settings: PydanticBaseSettingsSource,
-        dotenv_settings: PydanticBaseSettingsSource,
-        file_secret_settings: PydanticBaseSettingsSource,
-    ):
-        return (
-            init_settings,
-            _CorsOriginsEnvSettingsSource(settings_cls),
-            _CorsOriginsDotEnvSettingsSource(settings_cls),
-            file_secret_settings,
-        )
+            value = json.loads(text)
+            return [origin.strip() for origin in value if isinstance(origin, str) and origin.strip()]
+        return [origin.strip() for origin in text.split(",") if origin.strip()]
 
     model_config = SettingsConfigDict(
         env_file=str(_ENV_FILE),
         env_file_encoding="utf-8",
         extra="ignore",
-        enable_decoding=False,
     )
 
 
