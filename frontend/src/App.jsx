@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { ArrowRight, BarChart3, ChevronRight, CreditCard, Sparkles, Wand2 } from 'lucide-react'
+import { ArrowRight, BarChart3, CreditCard, Sparkles, Wand2 } from 'lucide-react'
 import Header from './components/Header'
 import SplashScreen from './components/SplashScreen'
 import AuthDialog from './components/AuthDialog'
@@ -476,39 +476,30 @@ export default function App() {
           </div>
         </div>
 
-        <div className="grid gap-5 lg:grid-cols-[264px_minmax(0,1fr)] lg:items-start">
-          <aside className="animate-rise-in-delayed space-y-4 lg:sticky lg:top-24">
-            <div className={`${workspaceCardClass} p-4`}>
-              <p className="text-[11px] uppercase tracking-[0.26em] text-gray-500">Workspace sections</p>
-              <div className="mt-3.5 space-y-2">
-                {visibleWorkspaceSections.map(({ id, title, description, icon: Icon }) => {
-                  const active = activeWorkspaceSection === id
-                  return (
-                    <button
-                      key={id}
-                      type="button"
-                      onClick={() => setActiveWorkspaceSection(id)}
-                      className={`w-full rounded-[20px] border px-3.5 py-3 text-left transition ${active ? 'border-cyan-400/32 bg-cyan-400/[0.08] shadow-[0_10px_24px_rgba(34,211,238,0.06)]' : 'border-white/8 bg-white/[0.03] hover:border-white/12 hover:bg-white/[0.045]'}`}
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="flex items-start gap-3">
-                          <div className={`mt-0.5 flex h-8 w-8 items-center justify-center rounded-xl ${active ? 'bg-cyan-400/15 text-cyan-300' : 'bg-slate-900 text-slate-400'}`}>
-                            <Icon size={15} />
-                          </div>
-                          <div>
-                            <p className={`text-sm font-semibold ${active ? 'text-white' : 'text-slate-200'}`}>{title}</p>
-                            <p className="mt-1 text-xs leading-5 text-slate-500">{description}</p>
-                          </div>
-                        </div>
-                        <ChevronRight size={15} className={active ? 'text-cyan-300' : 'text-slate-600'} />
-                      </div>
-                    </button>
-                  )
-                })}
-              </div>
+        <div className="space-y-5">
+          <div className="animate-rise-in-delayed rounded-[24px] border border-white/8 bg-[linear-gradient(180deg,rgba(10,16,30,0.9),rgba(8,13,25,0.86))] p-3 backdrop-blur">
+            <div className="flex flex-wrap gap-2">
+              {visibleWorkspaceSections.map(({ id, title, description, icon: Icon }) => {
+                const active = activeWorkspaceSection === id
+                return (
+                  <button
+                    key={id}
+                    type="button"
+                    onClick={() => setActiveWorkspaceSection(id)}
+                    className={`flex min-w-[220px] flex-1 items-start gap-3 rounded-[20px] border px-4 py-3 text-left transition ${active ? 'border-cyan-400/32 bg-cyan-400/[0.08] shadow-[0_10px_24px_rgba(34,211,238,0.06)]' : 'border-white/8 bg-white/[0.03] hover:border-white/12 hover:bg-white/[0.045]'}`}
+                  >
+                    <div className={`mt-0.5 flex h-9 w-9 items-center justify-center rounded-xl ${active ? 'bg-cyan-400/15 text-cyan-300' : 'bg-slate-900 text-slate-400'}`}>
+                      <Icon size={16} />
+                    </div>
+                    <div className="min-w-0">
+                      <p className={`text-sm font-semibold ${active ? 'text-white' : 'text-slate-200'}`}>{title}</p>
+                      <p className="mt-1 text-xs leading-5 text-slate-500">{description}</p>
+                    </div>
+                  </button>
+                )
+              })}
             </div>
-
-          </aside>
+          </div>
 
           <section className="animate-rise-in-soft min-w-0">
             {activeWorkspaceSection === 'setup' && (
