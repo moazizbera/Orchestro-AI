@@ -1,0 +1,197 @@
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap');
+
+/* Cinematic transitions for splash/auth/processing */
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --orch-bg: #050816;
+  --orch-surface: #0f172a;
+  --orch-text: #f8fafc;
+  --orch-muted: #94a3b8;
+  --orch-accent: #67e8f9;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background:
+    radial-gradient(circle at top left, rgba(45, 212, 191, 0.12), transparent 24%),
+    radial-gradient(circle at 82% 18%, rgba(56, 189, 248, 0.12), transparent 22%),
+    radial-gradient(circle at bottom center, rgba(251, 191, 36, 0.08), transparent 30%),
+    var(--orch-bg);
+  color: var(--orch-text);
+  font-family: 'Manrope', system-ui, sans-serif;
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: 'Space Grotesk', 'Manrope', system-ui, sans-serif;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-track { background: #030712; }
+::-webkit-scrollbar-thumb { background: #374151; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #4b5563; }
+
+/* Mono font utility */
+.font-mono-code {
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+}
+
+/* Card glass effect */
+.card {
+  @apply rounded-xl border border-gray-800 bg-gray-900;
+  box-shadow: 0 18px 50px rgba(2, 6, 23, 0.24);
+}
+
+.auth-field {
+  @apply flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 transition;
+}
+
+.auth-field:focus-within {
+  border-color: rgba(34, 211, 238, 0.35);
+  background: rgba(255, 255, 255, 0.07);
+  box-shadow: 0 0 0 1px rgba(34, 211, 238, 0.15);
+}
+
+.auth-input {
+  width: 100%;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: #f8fafc;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  appearance: none;
+}
+
+.auth-input::placeholder {
+  color: #64748b;
+}
+
+.auth-input:-webkit-autofill,
+.auth-input:-webkit-autofill:hover,
+.auth-input:-webkit-autofill:focus,
+.auth-input:-webkit-autofill:active {
+  -webkit-text-fill-color: #f8fafc;
+  -webkit-box-shadow: 0 0 0 1000px transparent inset;
+  transition: background-color 9999s ease-in-out 0s;
+  caret-color: #f8fafc;
+}
+
+/* Animated gradient border for active state */
+.gradient-border {
+  position: relative;
+  background: linear-gradient(135deg, #4f46e5, #7c3aed, #2563eb);
+  padding: 1px;
+  border-radius: 12px;
+}
+.gradient-border > * {
+  border-radius: 11px;
+}
+
+/* Status badges */
+.badge-high   { @apply bg-red-500/15 text-red-400 border border-red-500/30; }
+.badge-medium { @apply bg-amber-500/15 text-amber-400 border border-amber-500/30; }
+.badge-low    { @apply bg-emerald-500/15 text-emerald-400 border border-emerald-500/30; }
+.badge-info   { @apply bg-indigo-500/15 text-indigo-400 border border-indigo-500/30; }
+
+/* Loading shimmer */
+@keyframes shimmer {
+  0%   { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+.shimmer {
+  background: linear-gradient(90deg, #1f2937 25%, #374151 50%, #1f2937 75%);
+  background-size: 200% auto;
+  animation: shimmer 1.5s linear infinite;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes riseIn {
+  from {
+    opacity: 0;
+    transform: translateY(22px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.45s ease-out both;
+}
+
+.animate-fade-in-delayed {
+  animation: fadeIn 0.65s ease-out both;
+}
+
+.animate-rise-in {
+  animation: riseIn 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.animate-rise-in-delayed {
+  animation: riseIn 0.72s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.animate-rise-in-soft {
+  animation: riseIn 0.84s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Celebratory completion pulse */
+@keyframes celebratePulse {
+  0% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.8;
+    transform: scale(1.02);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-pulse {
+  animation: celebratePulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-in,
+  .animate-fade-in-delayed,
+  .animate-rise-in,
+  .animate-rise-in-delayed,
+  .animate-rise-in-soft,
+  .shimmer,
+  .animate-pulse {
+    animation: none !important;
+  }
+}

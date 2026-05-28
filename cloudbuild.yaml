@@ -1,0 +1,55 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Cloud Build CI/CD pipeline — Google Cloud Rapid Agent Hackathon
+# ─────────────────────────────────────────────────────────────────────────────
+# Deploys the Orchestro AI backend to Cloud Run in one command:
+#
+#   gcloud builds submit --config cloudbuild.yaml .
+#
+# Required substitution variables (set via --substitutions or Cloud Build trigger):
+#   _REGION          Cloud Run region (default: us-central1)
+#   _SERVICE         Cloud Run service name (default: orchestro-ai)
+#   _GEMINI_MODEL    Gemini model name (default: gemini-2.0-flash)
+# ─────────────────────────────────────────────────────────────────────────────
+
+substitutions:
+  _REGION: us-central1
+  _SERVICE: orchestro-ai
+  _GEMINI_MODEL: gemini-2.0-flash
+
+steps:
+  # ── 1. Build the backend container ────────────────────────────────────────
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - -t
+      - gcr.io/$PROJECT_ID/$_SERVICE:$COMMIT_SHA
+      - -t
+      - gcr.io/$PROJECT_ID/$_SERVICE:latest
+      - ./backend
+
+  # ── 2. Push to Container Registry ─────────────────────────────────────────
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - push
+      - --all-tags
+      - gcr.io/$PROJECT_ID/$_SERVICE
+
+  # ── 3. Deploy to Cloud Run ────────────────────────────────────────────────
+  - name: gcr.io/google.com/cloudsdktool/cloud-sdk
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - $_SERVICE
+      - --image=gcr.io/$PROJECT_ID/$_SERVICE:$COMMIT_SHA
+      - --region=$_REGION
+      - --platform=managed
+      - --allow-unauthenticated
+      - --set-env-vars=GOOGLE_CLOUD_PROJECT=$PROJECT_ID,GEMINI_BACKEND=vertex,GEMINI_MODEL=$_GEMINI_MODEL,AI_MODE=auto
+
+images:
+  - gcr.io/$PROJECT_ID/$_SERVICE:$COMMIT_SHA
+  - gcr.io/$PROJECT_ID/$_SERVICE:latest
+
+options:
+  logging: CLOUD_LOGGING_ONLY
