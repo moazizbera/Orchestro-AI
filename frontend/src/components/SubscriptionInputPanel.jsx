@@ -175,7 +175,7 @@ export default function SubscriptionInputPanel({ subscriptions, onChange, locked
 
       {/* List */}
       {subscriptions.length > 0 && (
-        <div className="space-y-1.5 max-h-52 overflow-y-auto pr-0.5">
+        <div className="space-y-1.5 max-h-[26rem] overflow-y-auto pr-0.5 xl:max-h-[34rem]">
           {subscriptions.map((sub) => (
             <div
               key={sub.id}
