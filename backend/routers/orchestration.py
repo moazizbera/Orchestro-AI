@@ -185,13 +185,13 @@ async def orchestrate(request: OrchestrationRequest):
             )
         except TimeoutError:
             logger.warning("[%s] Orchestrator exceeded %.1fs budget; using fallback route", request_id, settings.ai_request_timeout_seconds)
-            orchestrator_decision = _orchestrator.fallback_decision(request.request, request.agent_permissions)
+            orchestrator_decision = _orchestrator.fallback_decision(request.request, request.agent_permissions, mode="timeout")
             orch_prov = "fallback"
         except ModelProviderError as exc:
             if not _should_use_deterministic_fallback(exc):
                 raise
             logger.warning("[%s] Orchestrator provider unavailable; using fallback route", request_id)
-            orchestrator_decision = _orchestrator.fallback_decision(request.request, request.agent_permissions)
+            orchestrator_decision = _orchestrator.fallback_decision(request.request, request.agent_permissions, mode="no_provider")
             orch_prov = "fallback"
 
         agents_required: list[str] = _expand_support_agents(orchestrator_decision.get("agents_required", []), request.agent_permissions)

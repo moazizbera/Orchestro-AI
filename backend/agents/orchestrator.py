@@ -51,7 +51,13 @@ class OrchestratorAgent:
         caps = permissions.get(agent_key)
         return bool(caps)
 
-    def fallback_decision(self, user_request: str, permissions: dict | None = None) -> dict:
+    @staticmethod
+    def _fallback_reason(mode: str) -> str:
+        if mode == "no_provider":
+            return "No live AI provider was configured, so Orchestro used its deterministic routing path to keep the workflow responsive."
+        return "The live model exceeded the demo response budget, so Orchestro switched to its deterministic routing path to keep the workflow responsive."
+
+    def fallback_decision(self, user_request: str, permissions: dict | None = None, mode: str = "timeout") -> dict:
         request_text = (user_request or "").strip()
         normalized = request_text.lower()
         has_finance = bool(re.search(r"\b(subscription|subscriptions|cancel|downgrade|bill|billing|spend|spending|expense|expenses|waste|finance|financial|save|savings)\b", normalized))
@@ -128,7 +134,7 @@ class OrchestratorAgent:
                 "primary_agent": "orchestrator",
                 "agents_required": [],
                 "execution_plan": [],
-                "reasoning": "The live model exceeded the demo response budget, so Orchestro switched to its deterministic routing path to keep the workflow responsive.",
+                "reasoning": self._fallback_reason(mode),
                 "expected_outcome": "A concise guidance response without specialized agent execution.",
             }
 
@@ -140,7 +146,7 @@ class OrchestratorAgent:
             "primary_agent": primary_agent,
             "agents_required": agents_required,
             "execution_plan": execution_plan,
-            "reasoning": "The live model exceeded the demo response budget, so Orchestro switched to its deterministic routing path to deliver a complete recommendation set quickly.",
+            "reasoning": self._fallback_reason(mode).replace("keep the workflow responsive", "deliver a complete recommendation set quickly"),
             "expected_outcome": "A prioritized subscription review with ready-to-use follow-up actions, negotiation scripts, reminders, and scenario plans.",
         }
 

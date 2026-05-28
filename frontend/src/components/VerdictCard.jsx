@@ -48,6 +48,9 @@ export default function VerdictCard({ result }) {
   const itemsCount    = finance?.detected_items?.length ?? 0
   const timeSavedMin  = result.impact_metrics?.time_saved_minutes ?? 0
   const execSec       = (result.execution_time_ms / 1000).toFixed(1)
+  const providerLabel = decision?.confidence_label === 'Fallback'
+    ? 'Deterministic fallback analysis'
+    : `${decision?.confidence_label || 'Gemini'} agent analysis`
   return (
     <div className={`rounded-xl border ${meta.border} overflow-hidden animate-fade-up`}>
 
@@ -57,7 +60,7 @@ export default function VerdictCard({ result }) {
         {/* Mode chip */}
         <div className="flex items-center gap-2 mb-3">
           <span className="inline-flex items-center gap-1.5 text-xs text-indigo-400 bg-indigo-500/10 border border-indigo-500/25 rounded-full px-2.5 py-0.5">
-            <Cpu size={10} /> Gemini agent analysis
+            <Cpu size={10} /> {providerLabel}
           </span>
         </div>
 
