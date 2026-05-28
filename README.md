@@ -133,14 +133,10 @@ If you want a public demo before Google Cloud credits arrive, the simplest produ
 ### Render backend
 
 1. Create a new Web Service in Render from this repository.
-2. Set the service root directory to `backend`.
-3. Use a start command such as:
-
-```bash
-uvicorn main:app --host 0.0.0.0 --port $PORT
-```
-
-4. Configure backend environment variables:
+2. Choose the Docker runtime.
+3. Set the service root directory to `backend` so Render uses [backend/Dockerfile](f:/Projects/Hackathons/Orchestro-AI/backend/Dockerfile).
+4. No manual start command is needed; the Docker image starts Uvicorn itself.
+5. Configure backend environment variables:
 
 ```env
 GEMINI_API_KEY=your_key_here
