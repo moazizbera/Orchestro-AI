@@ -30,6 +30,14 @@ _scenario_agent: ScenarioAgent | None = None
 _provider: ModelProvider | None = None
 
 
+def _should_use_deterministic_fallback(exc: Exception) -> bool:
+    if not isinstance(exc, ModelProviderError):
+        return False
+    if _provider is not None and not _provider.available_providers:
+        return True
+    return "No AI provider is configured" in str(exc)
+
+
 def get_provider_status() -> dict:
     if _provider is None:
         preferred = (settings.preferred_provider or "gemini").strip().lower() or "gemini"
@@ -179,6 +187,12 @@ async def orchestrate(request: OrchestrationRequest):
             logger.warning("[%s] Orchestrator exceeded %.1fs budget; using fallback route", request_id, settings.ai_request_timeout_seconds)
             orchestrator_decision = _orchestrator.fallback_decision(request.request, request.agent_permissions)
             orch_prov = "fallback"
+        except ModelProviderError as exc:
+            if not _should_use_deterministic_fallback(exc):
+                raise
+            logger.warning("[%s] Orchestrator provider unavailable; using fallback route", request_id)
+            orchestrator_decision = _orchestrator.fallback_decision(request.request, request.agent_permissions)
+            orch_prov = "fallback"
 
         agents_required: list[str] = _expand_support_agents(orchestrator_decision.get("agents_required", []), request.agent_permissions)
         orchestrator_decision["agents_required"] = agents_required
@@ -209,6 +223,12 @@ async def orchestrate(request: OrchestrationRequest):
                 logger.warning("[%s] Finance Agent exceeded remaining budget; using deterministic fallback", request_id)
                 finance_output = _finance_agent.fallback_result(request.subscriptions)
                 fin_prov = "fallback"
+            except ModelProviderError as exc:
+                if not _should_use_deterministic_fallback(exc):
+                    raise
+                logger.warning("[%s] Finance Agent provider unavailable; using deterministic fallback", request_id)
+                finance_output = _finance_agent.fallback_result(request.subscriptions)
+                fin_prov = "fallback"
 
         # ── Step 3: Action Agent ────────────────────────────────────────────
         if "action_agent" in agents_required:
@@ -220,6 +240,12 @@ async def orchestrate(request: OrchestrationRequest):
                 )
             except TimeoutError:
                 logger.warning("[%s] Action Agent exceeded remaining budget; using deterministic fallback", request_id)
+                action_output = _action_agent.fallback_result(findings)
+                act_prov = "fallback"
+            except ModelProviderError as exc:
+                if not _should_use_deterministic_fallback(exc):
+                    raise
+                logger.warning("[%s] Action Agent provider unavailable; using deterministic fallback", request_id)
                 action_output = _action_agent.fallback_result(findings)
                 act_prov = "fallback"
 
