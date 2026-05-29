@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { CalendarDays, Clock3, Copy, Download, FileText, History, Mic, Sparkles, Target, TrendingDown, X, Zap } from 'lucide-react'
+import html2canvas from 'html2canvas'
 import { jsPDF } from 'jspdf'
 import ResultsPanel from './ResultsPanel'
 
@@ -91,6 +92,55 @@ function buildDemoScript(result) {
   ]
 
   return steps.map((step, index) => `${index + 1}. ${step}`).join('\n\n')
+}
+
+async function downloadReportFromDom(contentElement, requestId) {
+  if (!contentElement) {
+    return
+  }
+
+  const canvas = await html2canvas(contentElement, {
+    backgroundColor: '#020617',
+    scale: 2,
+    useCORS: true,
+    logging: false,
+    windowWidth: contentElement.scrollWidth,
+    windowHeight: contentElement.scrollHeight,
+  })
+
+  const imgData = canvas.toDataURL('image/png')
+  const pdf = new jsPDF('p', 'pt', 'a4')
+  const pageWidth = pdf.internal.pageSize.getWidth()
+  const pageHeight = pdf.internal.pageSize.getHeight()
+  const margin = 18
+  const printableWidth = pageWidth - margin * 2
+  const printableHeight = pageHeight - margin * 2
+  const imageHeight = (canvas.height * printableWidth) / canvas.width
+
+  let renderedHeight = 0
+  let pageNumber = 1
+
+  while (renderedHeight < imageHeight) {
+    if (pageNumber > 1) {
+      pdf.addPage()
+    }
+
+    pdf.addImage(
+      imgData,
+      'PNG',
+      margin,
+      margin - renderedHeight,
+      printableWidth,
+      imageHeight,
+      undefined,
+      'FAST',
+    )
+
+    renderedHeight += printableHeight
+    pageNumber += 1
+  }
+
+  pdf.save(`orchestro-judge-report-${requestId || 'latest'}.pdf`)
 }
 
 function downloadStyledPdfReport(result, demoScript) {
@@ -507,6 +557,8 @@ export default function ResultViewerModal({
 }) {
   const [copyState, setCopyState] = useState('idle')
   const [scriptCopyState, setScriptCopyState] = useState('idle')
+  const [downloadState, setDownloadState] = useState('idle')
+  const reportContentRef = useRef(null)
 
   if (!open || !result) return null
 
@@ -539,8 +591,16 @@ export default function ResultViewerModal({
     }
   }
 
-  const handleDownloadReport = () => {
-    downloadStyledPdfReport(result, demoScript)
+  const handleDownloadReport = async () => {
+    try {
+      setDownloadState('loading')
+      await downloadReportFromDom(reportContentRef.current, result.request_id?.slice(0, 8))
+      setDownloadState('done')
+      window.setTimeout(() => setDownloadState('idle'), 1800)
+    } catch {
+      setDownloadState('failed')
+      window.setTimeout(() => setDownloadState('idle'), 1800)
+    }
   }
 
   const handleCopyScript = async () => {
@@ -602,7 +662,7 @@ export default function ResultViewerModal({
                 className="inline-flex items-center gap-2 rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-2 text-xs text-emerald-300 transition hover:border-emerald-400/35 hover:text-white"
               >
                 <Download size={14} />
-                Download report
+                {downloadState === 'loading' ? 'Preparing PDF' : downloadState === 'done' ? 'Downloaded' : downloadState === 'failed' ? 'Download failed' : 'Download report'}
               </button>
               <button
                 type="button"
@@ -625,7 +685,7 @@ export default function ResultViewerModal({
         </div>
 
         <div className="flex-1 overflow-y-auto px-4 py-6 sm:px-6 sm:py-8">
-          <div className="mx-auto max-w-6xl space-y-6 animate-fade-in">
+          <div ref={reportContentRef} className="mx-auto max-w-6xl space-y-6 animate-fade-in">
             <div className="relative overflow-hidden rounded-[2rem] border border-white/10 bg-[linear-gradient(135deg,rgba(8,15,32,0.98),rgba(12,24,42,0.96),rgba(14,14,28,0.96))] p-6 shadow-[0_30px_120px_rgba(2,6,23,0.55)] sm:p-7">
               <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(45,212,191,0.16),transparent_26%),radial-gradient(circle_at_82%_18%,rgba(56,189,248,0.14),transparent_24%),radial-gradient(circle_at_50%_100%,rgba(251,191,36,0.1),transparent_30%)]" />
 
