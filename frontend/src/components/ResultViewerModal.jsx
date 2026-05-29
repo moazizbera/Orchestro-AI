@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { CalendarDays, Clock3, Copy, Download, FileText, History, Mic, Sparkles, Target, TrendingDown, X, Zap } from 'lucide-react'
+import { jsPDF } from 'jspdf'
 import ResultsPanel from './ResultsPanel'
 
 function buildJudgeReport(result) {
@@ -92,6 +93,264 @@ function buildDemoScript(result) {
   return steps.map((step, index) => `${index + 1}. ${step}`).join('\n\n')
 }
 
+function downloadStyledPdfReport(result, demoScript) {
+  const doc = new jsPDF({ unit: 'pt', format: 'a4' })
+  const pageWidth = doc.internal.pageSize.getWidth()
+  const pageHeight = doc.internal.pageSize.getHeight()
+  const margin = 44
+  const contentWidth = pageWidth - margin * 2
+  const monthlySavings = result.impact_metrics?.monthly_savings_estimate ?? 0
+  const annualSavings = result.impact_metrics?.annual_savings_estimate ?? monthlySavings * 12
+  const actionsReady = result.impact_metrics?.actions_executed ?? result.action_agent_output?.total_actions ?? 0
+  const financeItems = result.finance_agent_output?.detected_items || []
+  const actionItems = result.action_agent_output?.actions || []
+  const scenarios = result.scenario_agent_output?.scenarios || []
+  const recommendedScenario = result.scenario_agent_output?.recommended_scenario || 'N/A'
+  const timestamp = result.timestamp
+    ? new Date(result.timestamp).toLocaleString(undefined, {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      })
+    : 'N/A'
+
+  const palette = {
+    ink: [15, 23, 42],
+    muted: [71, 85, 105],
+    border: [203, 213, 225],
+    cyan: [8, 145, 178],
+    cyanSoft: [236, 254, 255],
+    emerald: [5, 150, 105],
+    emeraldSoft: [236, 253, 245],
+    violet: [109, 40, 217],
+    violetSoft: [245, 243, 255],
+    amber: [180, 83, 9],
+    amberSoft: [255, 251, 235],
+  }
+
+  let y = 0
+
+  const ensureSpace = (heightNeeded = 24) => {
+    if (y + heightNeeded <= pageHeight - margin) {
+      return
+    }
+    doc.addPage()
+    y = margin
+  }
+
+  const drawWrappedText = (text, x, top, options = {}) => {
+    const {
+      width = contentWidth,
+      fontSize = 11,
+      color = palette.ink,
+      lineHeight = 16,
+      font = 'helvetica',
+      fontStyle = 'normal',
+    } = options
+    doc.setFont(font, fontStyle)
+    doc.setFontSize(fontSize)
+    doc.setTextColor(...color)
+    const lines = doc.splitTextToSize(String(text || ''), width)
+    doc.text(lines, x, top)
+    return lines.length * lineHeight
+  }
+
+  const drawSectionTitle = (title) => {
+    ensureSpace(36)
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(13)
+    doc.setTextColor(...palette.cyan)
+    doc.text(title, margin, y)
+    y += 16
+    doc.setDrawColor(...palette.border)
+    doc.line(margin, y, pageWidth - margin, y)
+    y += 18
+  }
+
+  const drawInfoCard = ({ x, top, width, height, label, value, sublabel, fill, accent }) => {
+    doc.setFillColor(...fill)
+    doc.roundedRect(x, top, width, height, 16, 16, 'F')
+    doc.setDrawColor(...accent)
+    doc.roundedRect(x, top, width, height, 16, 16)
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(8)
+    doc.setTextColor(...accent)
+    doc.text(label.toUpperCase(), x + 14, top + 18)
+    doc.setFontSize(21)
+    doc.setTextColor(...palette.ink)
+    doc.text(value, x + 14, top + 44)
+    if (sublabel) {
+      doc.setFont('helvetica', 'normal')
+      doc.setFontSize(9)
+      doc.setTextColor(...palette.muted)
+      doc.text(sublabel, x + 14, top + height - 14)
+    }
+  }
+
+  const drawBulletList = (items, bulletColor = palette.cyan) => {
+    items.forEach((item) => {
+      ensureSpace(28)
+      doc.setFillColor(...bulletColor)
+      doc.circle(margin + 5, y - 4, 2.2, 'F')
+      const consumed = drawWrappedText(item, margin + 14, y, { width: contentWidth - 14, fontSize: 11, lineHeight: 15 })
+      y += consumed + 4
+    })
+  }
+
+  const drawLabeledBlock = (label, body) => {
+    ensureSpace(30)
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(11)
+    doc.setTextColor(...palette.ink)
+    doc.text(label, margin, y)
+    y += 14
+    const consumed = drawWrappedText(body, margin, y, { fontSize: 11, color: palette.muted, lineHeight: 16 })
+    y += consumed + 10
+  }
+
+  doc.setFillColor(...palette.ink)
+  doc.rect(0, 0, pageWidth, 158, 'F')
+  doc.setFillColor(...palette.cyan)
+  doc.rect(0, 0, 9, 158, 'F')
+  doc.setTextColor(255, 255, 255)
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(24)
+  doc.text('Orchestro AI', margin, 44)
+  doc.setFontSize(18)
+  doc.text('Judge Report', margin, 69)
+  doc.setFont('helvetica', 'normal')
+  doc.setFontSize(11)
+  doc.setTextColor(203, 213, 225)
+  doc.text(`Request ${result.request_id || 'N/A'}  •  ${timestamp}`, margin, 92)
+  const summaryHeight = drawWrappedText(result.final_summary || 'Multi-agent savings review completed.', margin, 116, {
+    width: contentWidth,
+    fontSize: 11,
+    color: [226, 232, 240],
+    lineHeight: 16,
+  })
+
+  y = 158 + 24 + Math.max(summaryHeight - 16, 0)
+
+  const gutter = 14
+  const cardWidth = (contentWidth - gutter * 2) / 3
+  const cardTop = y
+  drawInfoCard({
+    x: margin,
+    top: cardTop,
+    width: cardWidth,
+    height: 82,
+    label: 'Monthly upside',
+    value: `$${monthlySavings.toFixed(0)}`,
+    sublabel: `$${annualSavings.toFixed(0)}/year opportunity`,
+    fill: palette.emeraldSoft,
+    accent: palette.emerald,
+  })
+  drawInfoCard({
+    x: margin + cardWidth + gutter,
+    top: cardTop,
+    width: cardWidth,
+    height: 82,
+    label: 'Actions prepared',
+    value: String(actionsReady),
+    sublabel: 'drafts, reminders, and next steps',
+    fill: palette.cyanSoft,
+    accent: palette.cyan,
+  })
+  drawInfoCard({
+    x: margin + (cardWidth + gutter) * 2,
+    top: cardTop,
+    width: cardWidth,
+    height: 82,
+    label: 'Recommended path',
+    value: recommendedScenario,
+    sublabel: result.orchestrator_decision?.intent?.replaceAll('_', ' ') || 'Savings review',
+    fill: palette.violetSoft,
+    accent: palette.violet,
+  })
+  y += 104
+
+  drawSectionTitle('Executive summary')
+  drawLabeledBlock('Original request', result.user_request || 'N/A')
+  drawLabeledBlock('Outcome summary', result.final_summary || 'No summary available.')
+
+  if (financeItems.length) {
+    drawSectionTitle('Flagged subscriptions')
+    financeItems.forEach((item) => {
+      ensureSpace(72)
+      doc.setFillColor(248, 250, 252)
+      doc.setDrawColor(...palette.border)
+      doc.roundedRect(margin, y, contentWidth, 62, 14, 14, 'FD')
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(12)
+      doc.setTextColor(...palette.ink)
+      doc.text(item.service || 'Subscription', margin + 14, y + 19)
+      doc.setFontSize(10)
+      doc.setTextColor(...palette.amber)
+      doc.text(`${String(item.risk_level || 'medium').toUpperCase()} RISK`, margin + 14, y + 35)
+      doc.setTextColor(...palette.emerald)
+      doc.text(`$${Number(item.monthly_cost || 0).toFixed(2)}/mo`, pageWidth - margin - 86, y + 19)
+      const reasonHeight = drawWrappedText(item.reason || '', margin + 90, y + 35, {
+        width: contentWidth - 104,
+        fontSize: 9,
+        color: palette.muted,
+        lineHeight: 12,
+      })
+      y += Math.max(62, 30 + reasonHeight) + 10
+    })
+  }
+
+  if (actionItems.length) {
+    drawSectionTitle('Prepared actions')
+    drawBulletList(
+      actionItems.map((action) => `${action.target_service}: ${action.action_type} (${action.priority})${action.action_payload?.deadline ? ` — due ${action.action_payload.deadline}` : ''}`),
+      palette.violet,
+    )
+  }
+
+  if (result.negotiation_agent_output?.playbooks?.length) {
+    drawSectionTitle('Negotiation support')
+    drawBulletList(
+      result.negotiation_agent_output.playbooks.map((playbook) => `${playbook.service}: ${playbook.strategy}`),
+      palette.cyan,
+    )
+  }
+
+  if (result.calendar_agent_output?.reminders?.length) {
+    drawSectionTitle('Follow-up reminders')
+    drawBulletList(
+      result.calendar_agent_output.reminders.map((reminder) => `${reminder.title} by ${reminder.due_date}`),
+      palette.emerald,
+    )
+  }
+
+  if (scenarios.length) {
+    drawSectionTitle('Savings scenarios')
+    drawBulletList(
+      scenarios.map((scenario) => `${scenario.name}: $${Number(scenario.monthly_savings || 0).toFixed(2)}/mo — ${scenario.summary}`),
+      palette.amber,
+    )
+  }
+
+  drawSectionTitle('Demo script highlights')
+  drawBulletList(demoScript.split('\n\n').map((item) => item.replace(/^\d+\.\s*/, '')), palette.violet)
+
+  const pageCount = doc.getNumberOfPages()
+  for (let pageNumber = 1; pageNumber <= pageCount; pageNumber += 1) {
+    doc.setPage(pageNumber)
+    doc.setDrawColor(...palette.border)
+    doc.line(margin, pageHeight - 26, pageWidth - margin, pageHeight - 26)
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(9)
+    doc.setTextColor(...palette.muted)
+    doc.text('Orchestro AI — subscription savings audit report', margin, pageHeight - 12)
+    doc.text(`Page ${pageNumber} of ${pageCount}`, pageWidth - margin - 52, pageHeight - 12)
+  }
+
+  doc.save(`orchestro-judge-report-${result.request_id?.slice(0, 8) || 'latest'}.pdf`)
+}
+
 export default function ResultViewerModal({
   open,
   result,
@@ -136,15 +395,7 @@ export default function ResultViewerModal({
   }
 
   const handleDownloadReport = () => {
-    const blob = new Blob([judgeReport], { type: 'text/plain;charset=utf-8' })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = `orchestro-judge-report-${result.request_id?.slice(0, 8) || 'latest'}.txt`
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-    URL.revokeObjectURL(url)
+    downloadStyledPdfReport(result, demoScript)
   }
 
   const handleCopyScript = async () => {
