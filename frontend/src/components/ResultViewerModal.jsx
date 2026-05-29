@@ -104,8 +104,43 @@ function downloadStyledPdfReport(result, demoScript) {
   const actionsReady = result.impact_metrics?.actions_executed ?? result.action_agent_output?.total_actions ?? 0
   const financeItems = result.finance_agent_output?.detected_items || []
   const actionItems = result.action_agent_output?.actions || []
+  const playbooks = result.negotiation_agent_output?.playbooks || []
+  const reminders = result.calendar_agent_output?.reminders || []
   const scenarios = result.scenario_agent_output?.scenarios || []
   const recommendedScenario = result.scenario_agent_output?.recommended_scenario || 'N/A'
+  const confidence = Math.round((result.orchestrator_decision?.confidence || 0.7) * 100)
+  const executionPipeline = [
+    {
+      title: 'Orchestrator',
+      summary: `${result.orchestrator_decision?.intent?.replaceAll('_', ' ') || 'N/A'} · ${confidence}% confidence`,
+      provider: result.orchestrator_decision?.confidence_label || 'N/A',
+    },
+    {
+      title: 'Finance Agent',
+      summary: `${financeItems.length} subscription(s) · $${Number(result.finance_agent_output?.monthly_loss_estimate || 0).toFixed(2)}/mo waste`,
+      provider: result.finance_agent_output?.confidence_label || 'N/A',
+    },
+    {
+      title: 'Action Agent',
+      summary: `${actionItems.length} action(s) · $${Number(result.action_agent_output?.estimated_monthly_savings || 0).toFixed(2)}/mo savings`,
+      provider: result.action_agent_output?.confidence_label || 'N/A',
+    },
+    {
+      title: 'Negotiation Agent',
+      summary: `${result.negotiation_agent_output?.total_playbooks || playbooks.length} playbook(s)`,
+      provider: result.negotiation_agent_output?.confidence_label || 'N/A',
+    },
+    {
+      title: 'Calendar Agent',
+      summary: `${result.calendar_agent_output?.total_reminders || reminders.length} reminder(s)`,
+      provider: result.calendar_agent_output?.confidence_label || 'N/A',
+    },
+    {
+      title: 'Scenario Agent',
+      summary: `${scenarios.length} scenario(s) · ${recommendedScenario} recommended`,
+      provider: result.scenario_agent_output?.confidence_label || 'N/A',
+    },
+  ]
   const timestamp = result.timestamp
     ? new Date(result.timestamp).toLocaleString(undefined, {
         year: 'numeric',
@@ -199,6 +234,58 @@ function downloadStyledPdfReport(result, demoScript) {
     })
   }
 
+  const drawCardText = (title, bodyLines, options = {}) => {
+    const {
+      fill = [248, 250, 252],
+      border = palette.border,
+      accent = palette.cyan,
+      minHeight = 78,
+    } = options
+    const body = Array.isArray(bodyLines) ? bodyLines.filter(Boolean) : [bodyLines]
+    const wrappedTitle = doc.splitTextToSize(title || '', contentWidth - 28)
+    const wrappedBody = body.flatMap((line) => doc.splitTextToSize(String(line), contentWidth - 28))
+    const titleHeight = wrappedTitle.length * 14
+    const bodyHeight = wrappedBody.length * 12
+    const height = Math.max(minHeight, 24 + titleHeight + 10 + bodyHeight + 18)
+    ensureSpace(height + 10)
+    doc.setFillColor(...fill)
+    doc.setDrawColor(...border)
+    doc.roundedRect(margin, y, contentWidth, height, 14, 14, 'FD')
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(12)
+    doc.setTextColor(...palette.ink)
+    doc.text(wrappedTitle, margin + 14, y + 20)
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(10)
+    doc.setTextColor(...palette.muted)
+    doc.text(wrappedBody, margin + 14, y + 20 + titleHeight + 10)
+    if (accent) {
+      doc.setFillColor(...accent)
+      doc.roundedRect(margin, y, 6, height, 6, 6, 'F')
+    }
+    y += height + 10
+  }
+
+  const drawTagRow = (items, top, color = palette.cyan) => {
+    let cursorX = margin
+    items.forEach((item) => {
+      const text = String(item || '')
+      if (!text) return
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(8)
+      const width = doc.getTextWidth(text) + 18
+      if (cursorX + width > pageWidth - margin) {
+        return
+      }
+      doc.setFillColor(255, 255, 255)
+      doc.setDrawColor(...color)
+      doc.roundedRect(cursorX, top, width, 16, 8, 8, 'FD')
+      doc.setTextColor(...color)
+      doc.text(text, cursorX + 9, top + 11)
+      cursorX += width + 8
+    })
+  }
+
   const drawLabeledBlock = (label, body) => {
     ensureSpace(30)
     doc.setFont('helvetica', 'bold')
@@ -275,65 +362,123 @@ function downloadStyledPdfReport(result, demoScript) {
   drawLabeledBlock('Original request', result.user_request || 'N/A')
   drawLabeledBlock('Outcome summary', result.final_summary || 'No summary available.')
 
-  if (financeItems.length) {
-    drawSectionTitle('Flagged subscriptions')
-    financeItems.forEach((item) => {
-      ensureSpace(72)
-      doc.setFillColor(248, 250, 252)
-      doc.setDrawColor(...palette.border)
-      doc.roundedRect(margin, y, contentWidth, 62, 14, 14, 'FD')
-      doc.setFont('helvetica', 'bold')
-      doc.setFontSize(12)
-      doc.setTextColor(...palette.ink)
-      doc.text(item.service || 'Subscription', margin + 14, y + 19)
-      doc.setFontSize(10)
-      doc.setTextColor(...palette.amber)
-      doc.text(`${String(item.risk_level || 'medium').toUpperCase()} RISK`, margin + 14, y + 35)
-      doc.setTextColor(...palette.emerald)
-      doc.text(`$${Number(item.monthly_cost || 0).toFixed(2)}/mo`, pageWidth - margin - 86, y + 19)
-      const reasonHeight = drawWrappedText(item.reason || '', margin + 90, y + 35, {
-        width: contentWidth - 104,
-        fontSize: 9,
-        color: palette.muted,
-        lineHeight: 12,
-      })
-      y += Math.max(62, 30 + reasonHeight) + 10
+  drawSectionTitle('Verdict and execution pipeline')
+  drawCardText(
+    `${result.orchestrator_decision?.intent?.replaceAll('_', ' ') || 'Savings review'} · ${confidence}% confidence`,
+    [
+      result.orchestrator_decision?.reasoning || 'No reasoning available.',
+      `${actionsReady} action(s) prepared · ${financeItems.length} subscription(s) scanned · ${result.impact_metrics?.time_saved_minutes || 0} minute(s) saved`,
+    ],
+    { fill: palette.cyanSoft, border: palette.cyan, accent: palette.cyan },
+  )
+  executionPipeline.forEach((step) => {
+    drawCardText(step.title, [step.summary, `Provider path: ${step.provider}`], {
+      fill: [255, 255, 255],
+      border: palette.border,
+      accent: step.provider === 'Fallback' ? palette.amber : palette.emerald,
+      minHeight: 64,
     })
+  })
+
+  if (financeItems.length) {
+    drawSectionTitle('Finance Agent')
+    drawCardText(
+      `Monthly waste: $${Number(result.finance_agent_output?.monthly_loss_estimate || 0).toFixed(2)} · Annual waste: $${Number(result.finance_agent_output?.annual_loss_estimate || 0).toFixed(2)}`,
+      [
+        `Risk level: ${String(result.finance_agent_output?.risk_level || 'medium').toUpperCase()}`,
+        result.finance_agent_output?.reasoning || '',
+      ],
+      { fill: palette.amberSoft, border: palette.amber, accent: palette.amber },
+    )
+    financeItems.forEach((item) => {
+      drawCardText(
+        `${item.service || 'Subscription'} · $${Number(item.monthly_cost || 0).toFixed(2)}/mo · ${String(item.risk_level || 'medium').toUpperCase()} RISK`,
+        [item.reason || ''],
+        { fill: [248, 250, 252], border: palette.border, accent: palette.amber, minHeight: 72 },
+      )
+    })
+    if (result.finance_agent_output?.priority_actions?.length) {
+      drawLabeledBlock('Priority actions', result.finance_agent_output.priority_actions.join('\n'))
+    }
   }
 
   if (actionItems.length) {
-    drawSectionTitle('Prepared actions')
-    drawBulletList(
-      actionItems.map((action) => `${action.target_service}: ${action.action_type} (${action.priority})${action.action_payload?.deadline ? ` — due ${action.action_payload.deadline}` : ''}`),
-      palette.violet,
+    drawSectionTitle('Action Agent')
+    drawCardText(
+      `${actionItems.length} action(s) ready · $${Number(result.action_agent_output?.estimated_monthly_savings || 0).toFixed(2)}/mo estimated savings`,
+      [result.action_agent_output?.execution_summary || ''],
+      { fill: palette.violetSoft, border: palette.violet, accent: palette.violet },
     )
+    actionItems.forEach((action) => {
+      drawCardText(
+        `${action.target_service} · ${String(action.action_type || '').replaceAll('_', ' ')} · ${String(action.priority || '').toUpperCase()}`,
+        [
+          action.action_payload?.subject ? `Subject: ${action.action_payload.subject}` : null,
+          action.action_payload?.task ? `Task: ${action.action_payload.task}` : null,
+          action.action_payload?.deadline ? `Deadline: ${action.action_payload.deadline}` : null,
+          action.action_payload?.body || null,
+          ...(action.next_steps || []).map((step) => `Next: ${step}`),
+        ],
+        { fill: [250, 245, 255], border: palette.violet, accent: palette.violet, minHeight: 84 },
+      )
+    })
   }
 
-  if (result.negotiation_agent_output?.playbooks?.length) {
-    drawSectionTitle('Negotiation support')
-    drawBulletList(
-      result.negotiation_agent_output.playbooks.map((playbook) => `${playbook.service}: ${playbook.strategy}`),
-      palette.cyan,
-    )
+  if (playbooks.length) {
+    drawSectionTitle('Negotiation Agent')
+    playbooks.forEach((playbook) => {
+      drawCardText(
+        `${playbook.service} · ${playbook.channel || 'provider negotiation'} · Up to $${Number(playbook.estimated_monthly_savings || 0).toFixed(2)}/mo`,
+        [
+          `Strategy: ${playbook.strategy}`,
+          playbook.opening_line,
+          ...(playbook.talking_points || []).map((point) => `Talking point: ${point}`),
+          playbook.target_outcome ? `Target outcome: ${playbook.target_outcome}` : null,
+        ],
+        { fill: palette.cyanSoft, border: palette.cyan, accent: palette.cyan, minHeight: 92 },
+      )
+    })
   }
 
-  if (result.calendar_agent_output?.reminders?.length) {
-    drawSectionTitle('Follow-up reminders')
-    drawBulletList(
-      result.calendar_agent_output.reminders.map((reminder) => `${reminder.title} by ${reminder.due_date}`),
-      palette.emerald,
-    )
+  if (reminders.length) {
+    drawSectionTitle('Calendar Agent')
+    reminders.forEach((reminder) => {
+      drawCardText(
+        `${reminder.title} · Due ${reminder.due_date}`,
+        [
+          reminder.service ? `Service: ${reminder.service}` : null,
+          reminder.channel ? `Channel: ${reminder.channel}` : null,
+          reminder.note || null,
+        ],
+        { fill: palette.emeraldSoft, border: palette.emerald, accent: palette.emerald, minHeight: 76 },
+      )
+    })
   }
 
   if (scenarios.length) {
-    drawSectionTitle('Savings scenarios')
-    drawBulletList(
-      scenarios.map((scenario) => `${scenario.name}: $${Number(scenario.monthly_savings || 0).toFixed(2)}/mo — ${scenario.summary}`),
-      palette.amber,
+    drawSectionTitle('Scenario Agent')
+    drawCardText(
+      `Recommended scenario: ${recommendedScenario}`,
+      [result.scenario_agent_output?.scenario_summary || ''],
+      { fill: palette.amberSoft, border: palette.amber, accent: palette.amber },
     )
+    scenarios.forEach((scenario) => {
+      ensureSpace(110)
+      drawCardText(
+        `${scenario.name} · $${Number(scenario.monthly_savings || 0).toFixed(2)}/mo · $${Number(scenario.annual_savings || 0).toFixed(2)}/yr`,
+        [
+          scenario.timeline ? `Timeline: ${scenario.timeline}` : null,
+          scenario.risk_level ? `Execution intensity: ${scenario.risk_level}` : null,
+          scenario.summary || null,
+          scenario.services?.length ? `Focus services: ${scenario.services.join(', ')}` : null,
+          ...(scenario.actions || []).map((action) => `Action: ${action}`),
+        ],
+        { fill: [255, 251, 235], border: palette.amber, accent: palette.amber, minHeight: 100 },
+      )
+    })
   }
 
-  drawSectionTitle('Demo script highlights')
+  drawSectionTitle('Demo script')
   drawBulletList(demoScript.split('\n\n').map((item) => item.replace(/^\d+\.\s*/, '')), palette.violet)
 
   const pageCount = doc.getNumberOfPages()
